@@ -29,6 +29,7 @@ window.MockBackend = (function () {
       customer_id: "CUS-001",
       full_name: "สมชาย ใจดี",
       phone: "0812345678",
+      email: "somchai@example.com",
       id_last4: "5678",
       bot_mode: "auto",
       admin_note: "ลูกค้าVIP ต่อเนื่อง 3 ปี",
@@ -179,8 +180,8 @@ window.MockBackend = (function () {
       var p = norm(params.phone);
       var plate = norm(params.license_plate);
       var id4 = norm(params.id_last4);
-      if (!p || (!plate && !id4)) {
-        return { ok: false, error: "BAD_REQUEST", message: "กรุณากรอกเบอร์โทรและเลขทะเบียนรถ หรือเลขบัตร 4 ตัวท้าย" };
+      if (!p || !params.email || (!plate && !id4)) {
+        return { ok: false, error: "BAD_REQUEST", message: "กรุณากรอกเบอร์โทร อีเมล และเลขทะเบียนรถ หรือเลขบัตร 4 ตัวท้าย" };
       }
       var phoneMatch = p === norm(state.customer.phone);
       var secondMatch =
@@ -196,6 +197,7 @@ window.MockBackend = (function () {
       }
       state.linked = true;
       state.customer.linked = true;
+      if (params.email) state.customer.email = params.email;
       return { ok: true, linked: true, matched_policies: state.policies.length };
     }
 

@@ -7,6 +7,7 @@
     isDemo: false,
     inLiffClient: false,
     accessToken: null,
+    lineEmail: "",
     isAdmin: false,
     adminPin: sessionStorage.getItem(ADMIN_PIN_SESSION_KEY) || "",
     view: "loading", // loading | link | wallet | admin
@@ -149,6 +150,10 @@
         return;
       }
       state.accessToken = liff.getAccessToken();
+      try {
+        var decoded = liff.getDecodedIDToken();
+        if (decoded && decoded.email) state.lineEmail = decoded.email;
+      } catch (e) {}
       await loadWallet();
     } catch (err) {
       setGlobalAlert("ไม่สามารถเชื่อมต่อ LINE LIFF ได้: " + (err.message || err));
@@ -169,6 +174,9 @@
 
       state.isAdmin = Boolean(res.is_admin);
       if (!res.linked) {
+        if (state.lineEmail && !$("linkEmail").value) {
+          $("linkEmail").value = state.lineEmail;
+        }
         setView("link");
         return;
       }
@@ -212,7 +220,14 @@
       return;
     }
 
-    var params = { phone: phone };
+    var email = $("linkEmail").value.trim().toLowerCase();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      errBox.textContent = "กรุณากรอกอีเมลให้ถูกต้อง";
+      errBox.classList.remove("hidden");
+      return;
+    }
+
+    var params = { phone: phone, email: email };
     if (state.linkMode === "plate") {
       var plate = $("linkPlate").value.trim();
       if (!plate) {
@@ -710,6 +725,7 @@
     $("fFullName").value = customer ? customer.full_name || "" : "";
     $("fPhone").value = customer ? customer.phone || "" : "";
     $("fIdLast4").value = customer ? customer.id_last4 || "" : "";
+    $("fEmail").value = customer ? customer.email || "" : "";
     $("fAdminNote").value = customer ? customer.admin_note || "" : "";
 
     $("fPolicyId").value = policy ? policy.policy_id || "" : "";
@@ -799,6 +815,7 @@
         full_name: fullName,
         phone: phone,
         id_last4: $("fIdLast4").value.trim(),
+        email: $("fEmail").value.trim(),
         admin_note: $("fAdminNote").value.trim()
       },
       policy: {
