@@ -7,6 +7,7 @@
     isDemo: false,
     inLiffClient: false,
     accessToken: null,
+    idToken: "",
     lineEmail: "",
     isAdmin: false,
     adminPin: sessionStorage.getItem(ADMIN_PIN_SESSION_KEY) || "",
@@ -153,6 +154,7 @@
         return;
       }
       state.accessToken = liff.getAccessToken();
+      try { state.idToken = liff.getIDToken() || ""; } catch (e) {}
       try {
         var decoded = liff.getDecodedIDToken();
         if (decoded && decoded.email) state.lineEmail = decoded.email;
@@ -168,7 +170,8 @@
     setGlobalAlert("");
     setView("loading");
     try {
-      var res = await window.GasApi.request("get_my_wallet", {}, getAuth());
+      // idToken lets the server read the LINE Login email (verified with LINE) into the Pre-customer tab
+      var res = await window.GasApi.request("get_my_wallet", state.idToken ? { idToken: state.idToken } : {}, getAuth());
       if (!res.ok) {
         setGlobalAlert(window.GasApi.mapErrorMessage(res));
         setView("link");
