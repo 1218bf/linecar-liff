@@ -1,0 +1,377 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>กระเป๋ากรมธรรม์ดิจิทัล | Smart Car Insurance</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Thai:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="./styles.css" />
+  <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+</head>
+<body>
+  <!-- Interactive Demo Switcher Bar (auto-enabled when config.js uses placeholders in browser) -->
+  <div id="demoBar" class="demo-bar hidden" role="region" aria-label="Demo Mode Switcher">
+    <div class="demo-bar-inner">
+      <div class="demo-badge">
+        <span class="demo-dot"></span>
+        <span>DEMO PREVIEW (ข้อมูลจำลอง)</span>
+      </div>
+      <div class="demo-tabs">
+        <button type="button" class="demo-tab" data-demo-view="link">1) ผูกกรมธรรม์</button>
+        <button type="button" class="demo-tab active" data-demo-view="wallet">2) กระเป๋ากรมธรรม์ (2 คัน)</button>
+        <button type="button" class="demo-tab" data-demo-view="admin">3) หน้าแอดมิน + อัปโหลด PDF</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="appShell" class="app-shell">
+    <!-- Top Bar -->
+    <header class="topbar">
+      <div class="brand">
+        <div class="brand-icon" aria-hidden="true">🛡️</div>
+        <div>
+          <div class="brand-title">กระเป๋ากรมธรรม์ดิจิทัล</div>
+          <div class="brand-sub" id="brandSub">Smart Car Insurance Wallet</div>
+        </div>
+      </div>
+      <button type="button" id="btnToggleMode" class="btn-ghost-sm">
+        🔐 โหมดแอดมิน
+      </button>
+    </header>
+
+    <!-- Global Alert -->
+    <div id="globalAlert" class="alert alert-error hidden" role="alert"></div>
+
+    <!-- 1. Loading View -->
+    <section id="viewLoading" class="card loading-box">
+      <div class="spinner" aria-hidden="true"></div>
+      <div style="font-weight: 700; font-size: 16px;">กำลังเชื่อมต่อข้อมูลกรมธรรม์...</div>
+      <div style="font-size: 13px; color: var(--text-light); margin-top: 4px;">โปรดรอสักครู่</div>
+    </section>
+
+    <!-- 2. Easy Policy Linking View -->
+    <section id="viewLink" class="card hidden">
+      <h1 class="card-title">ผูกกรมธรรม์กับบัญชี LINE</h1>
+      <p class="card-desc">
+        ยืนยันตัวตนเพียงครั้งเดียว เพื่อเปิดดูเลขกรมธรรม์ เบอร์แจ้งเคลม 24 ชม. และดาวน์โหลดไฟล์ PDF ได้ตลอดเวลา
+      </p>
+
+      <div id="demoLinkHint" class="alert alert-info hidden">
+        💡 <strong>ทดสอบโหมด Demo:</strong> ใช้เบอร์ <code>0812345678</code> และทะเบียน <code>1กก 1234</code> (หรือเลขบัตร <code>5678</code>)
+      </div>
+
+      <form id="linkForm" novalidate>
+        <div class="form-group">
+          <label class="form-label" for="linkPhone">
+            เบอร์โทรศัพท์ที่แจ้งไว้กับตัวแทน <span class="required-star">*</span>
+          </label>
+          <input
+            id="linkPhone"
+            type="tel"
+            inputmode="tel"
+            class="form-input"
+            placeholder="เช่น 081-234-5678"
+            required
+          />
+        </div>
+
+        <div class="form-group">
+          <span class="form-label">เลือกวิธียืนยันข้อมูลคู่กับเบอร์โทร</span>
+          <div class="segmented" role="tablist">
+            <button type="button" class="segmented-btn active" data-link-mode="plate">เลขทะเบียนรถ</button>
+            <button type="button" class="segmented-btn" data-link-mode="id4">บัตรประชาชน 4 ตัวท้าย</button>
+          </div>
+
+          <div id="linkPlateGroup">
+            <input
+              id="linkPlate"
+              type="text"
+              class="form-input"
+              placeholder="เช่น 1กก 1234"
+            />
+            <div class="form-hint">กรอกเฉพาะตัวอักษรและตัวเลข ไม่ต้องใส่ชื่อจังหวัด</div>
+          </div>
+
+          <div id="linkId4Group" class="hidden">
+            <input
+              id="linkId4"
+              type="text"
+              inputmode="numeric"
+              maxlength="4"
+              class="form-input"
+              placeholder="เช่น 5678"
+            />
+            <div class="form-hint">เลขท้าย 4 หลักของบัตรประชาชนผู้เอาประกัน</div>
+          </div>
+        </div>
+
+        <div id="linkError" class="alert alert-error hidden"></div>
+
+        <button type="submit" id="btnLinkSubmit" class="btn btn-primary">
+          ยืนยันและเปิดกระเป๋ากรมธรรม์
+        </button>
+      </form>
+    </section>
+
+    <!-- 3. Digital Policy Wallet View -->
+    <section id="viewWallet" class="hidden">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; padding: 0 2px;">
+        <div style="font-size: 14px; color: var(--text-muted);">
+          สวัสดีคุณ <strong id="walletCustomerName" style="color: var(--text);">-</strong>
+        </div>
+        <div id="walletCarCount" style="font-size: 12px; font-weight: 700; color: var(--primary);"></div>
+      </div>
+
+      <!-- Multi-Car Tabs -->
+      <div id="carTabs" class="car-tabs" role="tablist" aria-label="เลือกรถยนต์"></div>
+
+      <!-- Policy Hero Card -->
+      <div id="policyHero" class="policy-hero"></div>
+
+      <!-- Claim Tip (hidden if empty) -->
+      <div id="claimTipBox" class="claim-tip hidden"></div>
+
+      <!-- Emergency & Primary Action Buttons -->
+      <div class="action-stack">
+        <a id="btnSosCall" href="#" class="btn btn-sos hidden">
+          🚨 แจ้งเคลมด่วน 24 ชม. (<span id="sosPhoneText"></span>)
+        </a>
+
+        <a id="btnRoadsideCall" href="#" class="btn btn-roadside hidden">
+          🛻 เรียกรถยก / ช่วยเหลือฉุกเฉิน (<span id="roadsidePhoneText"></span>)
+        </a>
+
+        <div class="pdf-grid">
+          <button type="button" id="btnDownloadPolicy" class="btn btn-outline">
+            📄 กรมธรรม์ PDF
+          </button>
+          <button type="button" id="btnDownloadPrb" class="btn btn-outline">
+            📄 พ.ร.บ. PDF
+          </button>
+        </div>
+
+        <button type="button" id="btnPushToReply" class="btn btn-line">
+          💬 เช็กเบี้ยต่ออายุ / ปรึกษาแอดมิน
+        </button>
+      </div>
+
+      <!-- Secondary Policy Details -->
+      <div class="card" style="padding: 16px 18px;">
+        <div style="font-size: 14px; font-weight: 700; margin-bottom: 10px;">รายละเอียดความคุ้มครอง</div>
+        <div id="policyDetailsList" class="detail-list"></div>
+      </div>
+    </section>
+
+    <!-- 4. Admin Portal View -->
+    <section id="viewAdmin" class="hidden">
+      <!-- Admin PIN Gate -->
+      <div id="adminPinCard" class="card hidden">
+        <h2 class="card-title">เข้าสู่ระบบแอดมิน</h2>
+        <p class="card-desc">กรอกรหัส Admin PIN เพื่อจัดการข้อมูลลูกค้า อัปโหลดไฟล์ PDF เข้า Google Drive และสลับโหมดบอท</p>
+        <form id="adminPinForm">
+          <div class="form-group">
+            <label class="form-label" for="adminPinInput">Admin Secret PIN</label>
+            <input
+              id="adminPinInput"
+              type="password"
+              inputmode="numeric"
+              class="form-input"
+              placeholder="กรอกรหัส PIN แอดมิน"
+              required
+            />
+          </div>
+          <div id="adminPinError" class="alert alert-error hidden"></div>
+          <button type="submit" id="btnAdminPinSubmit" class="btn btn-primary">เข้าสู่ระบบแอดมิน</button>
+        </form>
+      </div>
+
+      <!-- Admin Workspace -->
+      <div id="adminWorkspace" class="hidden">
+        <div class="card" style="padding: 16px 18px;">
+          <div style="display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 10px; margin-bottom: 14px;">
+            <div>
+              <h2 style="margin: 0; font-size: 18px; font-weight: 800;">ศูนย์จัดการแอดมิน &amp; Google Drive</h2>
+              <div style="font-size: 12px; color: var(--text-light);">ค้นหาลูกค้า สลับโหมด AI/Manual และอัปโหลด PDF กรมธรรม์</div>
+            </div>
+            <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+              <button type="button" id="btnNewPolicyForm" class="btn btn-primary btn-sm">+ เพิ่มกรมธรรม์ใหม่</button>
+              <button type="button" id="btnAdminLogout" class="btn btn-outline btn-sm hidden">ล้าง PIN</button>
+            </div>
+          </div>
+
+          <form id="adminSearchForm" class="admin-search-bar">
+            <input
+              id="adminSearchInput"
+              type="text"
+              class="form-input"
+              placeholder="ค้นหาชื่อ, เบอร์โทร, ทะเบียนรถ, เลขกรมธรรม์..."
+            />
+            <button type="submit" class="btn btn-primary btn-sm" style="min-height: 46px; padding: 0 18px;">ค้นหา</button>
+          </form>
+
+          <div id="adminSearchStatus" style="font-size: 12px; color: var(--text-light); margin-bottom: 8px;"></div>
+        </div>
+
+        <!-- Upsert Customer & Policy + PDF Form -->
+        <div id="adminFormCard" class="card hidden">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px;">
+            <h3 id="adminFormTitle" style="margin: 0; font-size: 17px; font-weight: 800;">เพิ่ม / แก้ไขกรมธรรม์</h3>
+            <button type="button" id="btnCloseAdminForm" class="btn-ghost-sm">✕ ปิดฟอร์ม</button>
+          </div>
+
+          <form id="adminUpsertForm">
+            <input type="hidden" id="fCustomerId" />
+            <input type="hidden" id="fPolicyId" />
+
+            <div style="font-size: 13px; font-weight: 700; color: var(--primary); margin-bottom: 10px;">ข้อมูลลูกค้า</div>
+            <div class="grid-2">
+              <div class="form-group">
+                <label class="form-label" for="fFullName">ชื่อ-นามสกุล <span class="required-star">*</span></label>
+                <input id="fFullName" type="text" class="form-input" required placeholder="เช่น สมชาย ใจดี" />
+              </div>
+              <div class="form-group">
+                <label class="form-label" for="fPhone">เบอร์โทรศัพท์ (9-10 หลัก) <span class="required-star">*</span></label>
+                <input id="fPhone" type="tel" class="form-input" required placeholder="0812345678" />
+              </div>
+            </div>
+
+            <div class="grid-2">
+              <div class="form-group">
+                <label class="form-label" for="fIdLast4">เลขบัตรประชาชน 4 ตัวท้าย</label>
+                <input id="fIdLast4" type="text" maxlength="4" inputmode="numeric" class="form-input" placeholder="เช่น 5678" />
+              </div>
+              <div class="form-group">
+                <label class="form-label" for="fAdminNote">หมายเหตุแอดมิน</label>
+                <input id="fAdminNote" type="text" class="form-input" placeholder="เช่น ลูกค้า VIP" />
+              </div>
+            </div>
+
+            <hr style="border: none; border-top: 1px solid var(--border); margin: 16px 0;" />
+            <div style="font-size: 13px; font-weight: 700; color: var(--primary); margin-bottom: 10px;">ข้อมูลรถและกรมธรรม์</div>
+
+            <div class="grid-2">
+              <div class="form-group">
+                <label class="form-label" for="fLicensePlate">เลขทะเบียนรถ <span class="required-star">*</span></label>
+                <input id="fLicensePlate" type="text" class="form-input" required placeholder="เช่น 1กก 1234" />
+              </div>
+              <div class="form-group">
+                <label class="form-label" for="fProvince">จังหวัด</label>
+                <input id="fProvince" type="text" class="form-input" placeholder="เช่น กรุงเทพมหานคร" />
+              </div>
+            </div>
+
+            <div class="grid-2">
+              <div class="form-group">
+                <label class="form-label" for="fCarModel">ยี่ห้อ / รุ่นรถ</label>
+                <input id="fCarModel" type="text" class="form-input" placeholder="เช่น Toyota Camry 2.5" />
+              </div>
+              <div class="form-group">
+                <label class="form-label" for="fInsurer">บริษัทประกันภัย</label>
+                <select id="fInsurer" class="form-select"></select>
+              </div>
+            </div>
+
+            <div class="grid-2">
+              <div class="form-group">
+                <label class="form-label" for="fCoverageClass">ชั้นประกัน</label>
+                <select id="fCoverageClass" class="form-select"></select>
+              </div>
+              <div class="form-group">
+                <label class="form-label" for="fGarageType">ประเภทการซ่อม</label>
+                <select id="fGarageType" class="form-select"></select>
+              </div>
+            </div>
+
+            <div class="grid-2">
+              <div class="form-group">
+                <label class="form-label" for="fPolicyNo">เลขที่กรมธรรม์</label>
+                <input id="fPolicyNo" type="text" class="form-input" placeholder="เช่น VRI-69-11223344" />
+              </div>
+              <div class="form-group">
+                <label class="form-label" for="fPrbNo">เลขที่ พ.ร.บ.</label>
+                <input id="fPrbNo" type="text" class="form-input" placeholder="เช่น PRB-69-998877" />
+              </div>
+            </div>
+
+            <div class="grid-2">
+              <div class="form-group">
+                <label class="form-label" for="fStartDate">วันเริ่มคุ้มครอง</label>
+                <input id="fStartDate" type="date" class="form-input" />
+              </div>
+              <div class="form-group">
+                <label class="form-label" for="fEndDate">วันหมดอายุ <span class="required-star">*</span></label>
+                <input id="fEndDate" type="date" class="form-input" required />
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label" for="fPolicyStatus">สถานะกรมธรรม์</label>
+              <select id="fPolicyStatus" class="form-select">
+                <option value="active">active (คุ้มครองปกติ)</option>
+                <option value="expired">expired (หมดอายุ)</option>
+                <option value="cancelled">cancelled (ยกเลิก)</option>
+              </select>
+            </div>
+
+            <hr style="border: none; border-top: 1px solid var(--border); margin: 16px 0;" />
+            <div style="font-size: 13px; font-weight: 700; color: var(--primary); margin-bottom: 10px;">
+              อัปโหลดไฟล์ PDF เข้า Google Drive (ไม่เกิน 5 MB / ไฟล์)
+            </div>
+
+            <div class="grid-2" style="margin-bottom: 16px;">
+              <div>
+                <div class="dropzone" id="dzPolicy" tabindex="0" role="button" aria-label="อัปโหลดไฟล์กรมธรรม์ PDF">
+                  <div class="dropzone-title">📄 ไฟล์กรมธรรม์ (PDF)</div>
+                  <div class="dropzone-sub">คลิกเลือก หรือลากไฟล์มาวางที่นี่</div>
+                  <div id="dzPolicyChip" class="file-chip hidden"></div>
+                </div>
+                <input type="file" id="filePolicy" accept="application/pdf,.pdf" class="hidden" />
+              </div>
+
+              <div>
+                <div class="dropzone" id="dzPrb" tabindex="0" role="button" aria-label="อัปโหลดไฟล์ พ.ร.บ. PDF">
+                  <div class="dropzone-title">📄 ไฟล์ พ.ร.บ. (PDF)</div>
+                  <div class="dropzone-sub">คลิกเลือก หรือลากไฟล์มาวางที่นี่</div>
+                  <div id="dzPrbChip" class="file-chip hidden"></div>
+                </div>
+                <input type="file" id="filePrb" accept="application/pdf,.pdf" class="hidden" />
+              </div>
+            </div>
+
+            <div id="adminFormError" class="alert alert-error hidden"></div>
+
+            <button type="submit" id="btnAdminSave" class="btn btn-primary">
+              💾 บันทึกข้อมูล &amp; อัปโหลดเข้า Google Drive
+            </button>
+          </form>
+        </div>
+
+        <!-- Results List -->
+        <div id="adminResultsList"></div>
+      </div>
+    </section>
+  </div>
+
+  <!-- Modal for PDF Link / Browser Fallback -->
+  <div id="appModal" class="modal-backdrop hidden" role="dialog" aria-modal="true">
+    <div class="modal-card">
+      <h3 id="modalTitle" style="margin: 0 0 8px; font-size: 18px;"></h3>
+      <p id="modalBody" style="margin: 0 0 16px; font-size: 14px; color: var(--text-muted); white-space: pre-line;"></p>
+      <div style="display: flex; flex-direction: column; gap: 8px;">
+        <a id="modalPrimaryLink" href="#" target="_blank" rel="noopener" class="btn btn-primary hidden">เปิดไฟล์ PDF</a>
+        <button type="button" id="modalCloseBtn" class="btn btn-outline">ปิดหน้าต่าง</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast -->
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+  <script defer src="./config.js"></script>
+  <script defer src="./mock-data.js"></script>
+  <script defer src="./api.js"></script>
+  <script defer src="./app.js"></script>
+</body>
+</html>
