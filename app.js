@@ -10,7 +10,7 @@
     lineEmail: "",
     isAdmin: false,
     adminPin: sessionStorage.getItem(ADMIN_PIN_SESSION_KEY) || "",
-    view: "loading", // loading | link | wallet | admin
+    view: "loading", // loading | link | pending | wallet | admin
     linkMode: "plate", // plate | id4
     wallet: {
       customer: null,
@@ -86,12 +86,13 @@
 
   function setView(viewName) {
     state.view = viewName;
-    ["viewLoading", "viewLink", "viewWallet", "viewAdmin"].forEach(function (id) {
+    ["viewLoading", "viewLink", "viewPending", "viewWallet", "viewAdmin"].forEach(function (id) {
       $(id).classList.add("hidden");
     });
     var map = {
       loading: "viewLoading",
       link: "viewLink",
+      pending: "viewPending",
       wallet: "viewWallet",
       admin: "viewAdmin"
     };
@@ -99,6 +100,8 @@
 
     var shell = $("appShell");
     var toggleBtn = $("btnToggleMode");
+    // Admin mode switch is only for admins listed in the Admins sheet (or the demo preview)
+    toggleBtn.classList.toggle("hidden", !(state.isDemo || state.isAdmin));
     if (viewName === "admin") {
       shell.classList.add("admin-wide");
       toggleBtn.textContent = "🛡️ กลับหน้ากระเป๋า";
@@ -173,6 +176,10 @@
       }
 
       state.isAdmin = Boolean(res.is_admin);
+      if (!res.linked && res.pending) {
+        showPending(res.request_id, "");
+        return;
+      }
       if (!res.linked) {
         if (state.lineEmail && !$("linkEmail").value) {
           $("linkEmail").value = state.lineEmail;
@@ -257,6 +264,26 @@
         errBox.classList.remove("hidden");
         return;
       }
+      if (res.pending) {
+        // Post the request into the LINE chat so the admin can verify ownership (n8n sends the admin an approve card)
+        var lines = [
+          "ขอผูกบัญชีกรมธรรม์",
+          "รหัสคำขอ: " + res.request_id,
+          "เบอร์โทร: " + phone,
+          params.license_plate ? "ทะเบียนรถ: " + params.license_plate : "บัตรประชาชน 4 ตัวท้าย: " + params.id_last4,
+          "อีเมล: " + email
+        ];
+        var note = "";
+        try {
+          if (state.isDemo) throw new Error("demo");
+          await liff.sendMessages([{ type: "text", text: lines.join("\n") }]);
+          note = "ส่งข้อความคำขอเข้าห้องแชตแล้ว แอดมินจะตรวจสอบและแจ้งผลทางแชตค่ะ";
+        } catch (sendErr) {
+          note = "ส่งข้อความเข้าแชตอัตโนมัติไม่ได้ กรุณาพิมพ์ในแชต LINE ว่า: ขอผูกบัญชีกรมธรรม์ รหัสคำขอ: " + res.request_id;
+        }
+        showPending(res.request_id, note);
+        return;
+      }
       showToast("ผูกบัญชีสำเร็จ (" + (res.matched_policies || 1) + " กรมธรรม์)");
       await loadWallet();
     } catch (err) {
@@ -266,6 +293,14 @@
       btn.disabled = false;
       btn.textContent = "ยืนยันและเปิดกระเป๋ากรมธรรม์";
     }
+  }
+
+  function showPending(requestId, note) {
+    $("pendingRequestId").textContent = requestId || "-";
+    var noteEl = $("pendingChatNote");
+    noteEl.textContent = note || "";
+    noteEl.classList.toggle("hidden", !note);
+    setView("pending");
   }
 
   /* ======================== DIGITAL POLICY WALLET ======================== */
@@ -896,6 +931,7 @@
     });
 
     $("linkForm").addEventListener("submit", handleLinkSubmit);
+    $("btnPendingRefresh").addEventListener("click", function () { loadWallet(); });
     $("btnDownloadPolicy").addEventListener("click", function () { handleDownloadPdf("policy"); });
     $("btnDownloadPrb").addEventListener("click", function () { handleDownloadPdf("prb"); });
     $("btnPushToReply").addEventListener("click", handlePushToReply);
