@@ -875,3 +875,16 @@ textarea {
   padding: 20px;
   box-shadow: var(--shadow-md);
 }
+
+.btn-secondary {
+  background: #ffffff;
+  color: #1d4ed8;
+  border: 2px solid #1d4ed8;
+  margin-top: 12px;
+}
+.btn-secondary:hover:not(:disabled) {
+  background: #eff6ff;
+}
+#linkAskAdmin {
+  margin-top: 4px;
+}

@@ -263,10 +263,18 @@
     try {
       var res = await window.GasApi.request("link_account", params, getAuth());
       if (!res.ok) {
-        errBox.textContent = window.GasApi.mapErrorMessage(res);
+        if (res.error === "NOT_FOUND") {
+          errBox.textContent = "ไม่พบข้อมูลที่ตรงกับเบอร์โทรและ" + (params.license_plate ? "ทะเบียนรถ" : "เลขบัตร 4 ตัวท้าย") +
+            "ที่กรอก ลองตรวจเบอร์และตัวอักษร/ตัวเลขอีกครั้ง หรือกด \"ส่งข้อมูลให้แอดมินตรวจสอบ\" ด้านล่างค่ะ";
+          state.lastLinkInput = { phone: phone, email: email, plate: params.license_plate || "", id4: params.id_last4 || "" };
+          $("linkAskAdmin").classList.remove("hidden");
+        } else {
+          errBox.textContent = window.GasApi.mapErrorMessage(res);
+        }
         errBox.classList.remove("hidden");
         return;
       }
+      $("linkAskAdmin").classList.add("hidden");
       if (res.pending) {
         // Post the request into the LINE chat so the admin can verify ownership (n8n sends the admin an approve card)
         var lines = [
@@ -295,6 +303,32 @@
     } finally {
       btn.disabled = false;
       btn.textContent = "ยืนยันและเปิดกระเป๋ากรมธรรม์";
+    }
+  }
+
+  async function handleAskAdmin() {
+    var li = state.lastLinkInput;
+    if (!li) return;
+    var btn = $("btnAskAdmin");
+    btn.disabled = true;
+    var lines = [
+      "ขอให้แอดมินตรวจสอบการผูกบัญชี",
+      "เบอร์โทร: " + li.phone,
+      li.plate ? "ทะเบียนรถ: " + li.plate : "บัตรประชาชน 4 ตัวท้าย: " + li.id4,
+      "อีเมล: " + li.email
+    ];
+    try {
+      if (state.isDemo) throw new Error("demo");
+      await liff.sendMessages([{ type: "text", text: lines.join("\n") }]);
+      $("linkError").textContent = "ส่งข้อมูลให้แอดมินแล้วค่ะ แอดมินจะตรวจสอบและแจ้งกลับทางแชต LINE";
+      $("linkError").classList.remove("hidden");
+      $("linkAskAdmin").classList.add("hidden");
+      if (window.liff && liff.isInClient && liff.isInClient()) setTimeout(function () { try { liff.closeWindow(); } catch (e) {} }, 1500);
+    } catch (err) {
+      $("linkError").textContent = "ส่งเข้าแชตอัตโนมัติไม่ได้ กรุณาพิมพ์ในแชต LINE ว่า: " + lines.join(" / ");
+      $("linkError").classList.remove("hidden");
+    } finally {
+      btn.disabled = false;
     }
   }
 
@@ -934,6 +968,7 @@
     });
 
     $("linkForm").addEventListener("submit", handleLinkSubmit);
+    $("btnAskAdmin").addEventListener("click", handleAskAdmin);
     $("btnPendingRefresh").addEventListener("click", function () { loadWallet(); });
     $("btnDownloadPolicy").addEventListener("click", function () { handleDownloadPdf("policy"); });
     $("btnDownloadPrb").addEventListener("click", function () { handleDownloadPdf("prb"); });
